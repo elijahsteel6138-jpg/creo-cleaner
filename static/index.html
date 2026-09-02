@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Creo Cleaner</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --ink: #f8fafc;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --accent-hover: #0ea5e9;
+      --line: #334155;
+      --error: #f87171;
+      --ok: #4ade80;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: radial-gradient(circle at top, #1e3a5f, var(--bg) 55%);
+      color: var(--ink);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    main {
+      width: min(560px, 100%);
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      padding: 28px;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+    }
+    h1 { margin: 0 0 8px; font-size: 28px; }
+    .sub { color: var(--muted); margin: 0 0 24px; line-height: 1.5; }
+    .dropzone {
+      border: 2px dashed var(--line);
+      border-radius: 16px;
+      padding: 36px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .dropzone.dragover {
+      border-color: var(--accent);
+      background: rgba(56, 189, 248, 0.08);
+    }
+    .dropzone p { margin: 0; color: var(--muted); }
+    .filename {
+      margin-top: 12px;
+      font-size: 14px;
+      color: var(--ink);
+      word-break: break-all;
+    }
+    input[type="file"] { display: none; }
+    button {
+      margin-top: 16px;
+      width: 100%;
+      border: 0;
+      border-radius: 999px;
+      padding: 14px 18px;
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+      background: var(--accent);
+      color: #082f49;
+    }
+    button:hover:not(:disabled) { background: var(--accent-hover); }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .status {
+      margin-top: 16px;
+      padding: 12px 14px;
+      border-radius: 12px;
+      font-size: 14px;
+      display: none;
+    }
+    .status.show { display: block; }
+    .status.info { background: rgba(56, 189, 248, 0.12); color: var(--accent); }
+    .status.error { background: rgba(248, 113, 113, 0.12); color: var(--error); }
+    .status.ok { background: rgba(74, 222, 128, 0.12); color: var(--ok); }
+    .hint {
+      margin-top: 18px;
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Creo Cleaner</h1>
+    <p class="sub">
+      Загрузите видео — сервис удалит метаданные и слегка перекодирует файл.
+      Результат скачается автоматически.
+    </p>
+
+    <label class="dropzone" id="dropzone">
+      <input type="file" id="fileInput" accept="video/*,.mp4,.mov,.webm,.mkv,.avi,.m4v" />
+      <p>Перетащите видео сюда или нажмите для выбора</p>
+      <div class="filename" id="filename"></div>
+    </label>
+
+    <button id="submitBtn" disabled>Очистить видео</button>
+    <div class="status" id="status"></div>
+
+    <p class="hint">
+      Поддерживаются MP4, MOV, WEBM, MKV, AVI. Обработка может занять 1–2 минуты
+      для длинных роликов.
+    </p>
+  </main>
+
+  <script>
+    const dropzone = document.getElementById("dropzone");
+    const fileInput = document.getElementById("fileInput");
+    const filenameEl = document.getElementById("filename");
+    const submitBtn = document.getElementById("submitBtn");
+    const statusEl = document.getElementById("status");
+    let selectedFile = null;
+
+    function setStatus(text, kind) {
+      statusEl.textContent = text;
+      statusEl.className = "status show " + (kind || "info");
+    }
+
+    function clearStatus() {
+      statusEl.textContent = "";
+      statusEl.className = "status";
+    }
+
+    function pickFile(file) {
+      if (!file) return;
+      selectedFile = file;
+      filenameEl.textContent = file.name + " (" + (file.size / (1024 * 1024)).toFixed(1) + " MB)";
+      submitBtn.disabled = false;
+      clearStatus();
+    }
+
+    dropzone.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      dropzone.classList.add("dragover");
+    });
+    dropzone.addEventListener("dragleave", () => dropzone.classList.remove("dragover"));
+    dropzone.addEventListener("drop", (e) => {
+      e.preventDefault();
+      dropzone.classList.remove("dragover");
+      pickFile(e.dataTransfer.files[0]);
+    });
+    fileInput.addEventListener("change", () => pickFile(fileInput.files[0]));
+
+    submitBtn.addEventListener("click", async () => {
+      if (!selectedFile) return;
+      submitBtn.disabled = true;
+      setStatus("Обрабатываем видео… Подождите.", "info");
+
+      const form = new FormData();
+      form.append("file", selectedFile);
+
+      try {
+        const resp = await fetch("/process", { method: "POST", body: form });
+        if (!resp.ok) {
+          let message = "Ошибка обработки";
+          try {
+            const data = await resp.json();
+            message = data.detail || message;
+          } catch (_) {
+            message = await resp.text() || message;
+          }
+          throw new Error(message);
+        }
+
+        const blob = await resp.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        const base = selectedFile.name.replace(/\.[^.]+$/, "");
+        a.href = url;
+        a.download = base + "_clean.mp4";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        setStatus("Готово! Файл скачан.", "ok");
+      } catch (err) {
+        setStatus(err.message || "Не удалось обработать файл", "error");
+      } finally {
+        submitBtn.disabled = !selectedFile;
+      }
+    });
+  </script>
+</body>
+</html>
