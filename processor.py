@@ -68,40 +68,45 @@ def process_video(input_path: str | Path, output_path: str | Path | None = None)
     if abs(brightness) > 0.001:
         vf += f",eq=brightness={brightness:.4f}"
 
-    cmd = [
-        "ffmpeg",
-        "-y",
-        "-hide_banner",
-        "-loglevel",
-        "error",
-        "-i",
-        str(input_path),
-        "-map_metadata",
-        "-1",
-        "-metadata",
-        "title=",
-        "-metadata",
-        "comment=",
-        "-metadata",
-        "description=",
-        "-vf",
-        vf,
-        "-c:v",
-        "libx264",
-        "-crf",
-        str(crf),
-        "-preset",
-        "fast",
-        "-c:a",
-        "aac",
-        "-b:a",
-        "128k",
-        "-movflags",
-        "+faststart",
-        str(output_path),
-    ]
+    def run_ffmpeg(audio_args: list[str]) -> subprocess.CompletedProcess[str]:
+        cmd = [
+            "ffmpeg",
+            "-y",
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-i",
+            str(input_path),
+            "-map_metadata",
+            "-1",
+            "-metadata",
+            "title=",
+            "-metadata",
+            "comment=",
+            "-metadata",
+            "description=",
+            "-vf",
+            vf,
+            "-c:v",
+            "libx264",
+            "-crf",
+            str(crf),
+            "-preset",
+            "ultrafast",
+            "-threads",
+            "0",
+            *audio_args,
+            "-movflags",
+            "+faststart",
+            str(output_path),
+        ]
+        return subprocess.run(cmd, capture_output=True, text=True)
 
-    result = subprocess.run(cmd, capture_output=True, text=True)
+    # Prefer copying audio (much faster); fall back to AAC if remux fails.
+    result = run_ffmpeg(["-c:a", "copy"])
+    if result.returncode != 0:
+        result = run_ffmpeg(["-c:a", "aac", "-b:a", "128k"])
+
     if result.returncode != 0:
         stderr = (result.stderr or "").strip()
         raise RuntimeError(stderr or "ffmpeg завершился с ошибкой")
