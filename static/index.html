@@ -4,10 +4,13 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Creo Cleaner</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=Syne:wght@600;700;800&display=swap" rel="stylesheet" />
   <style>
     :root {
       --bg: #0f172a;
-      --card: #1e293b;
+      --panel: #1e293b;
       --ink: #f8fafc;
       --muted: #94a3b8;
       --accent: #38bdf8;
@@ -20,63 +23,173 @@
     body {
       margin: 0;
       min-height: 100vh;
-      font-family: "Segoe UI", system-ui, sans-serif;
-      background: radial-gradient(circle at top, #1e3a5f, var(--bg) 55%);
+      font-family: "DM Sans", sans-serif;
       color: var(--ink);
+      background:
+        radial-gradient(ellipse 80% 50% at 50% -10%, #1e3a5f 0%, transparent 55%),
+        var(--bg);
       display: flex;
       align-items: center;
       justify-content: center;
       padding: 24px;
+      position: relative;
+      overflow-x: hidden;
+    }
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.035;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
     }
     main {
       width: min(560px, 100%);
-      background: var(--card);
+      background: color-mix(in srgb, var(--panel) 92%, transparent);
       border: 1px solid var(--line);
       border-radius: 20px;
-      padding: 28px;
-      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+      padding: 32px 28px;
+      position: relative;
+      z-index: 1;
+      animation: rise 0.45s ease-out both;
     }
-    h1 { margin: 0 0 8px; font-size: 28px; }
-    .sub { color: var(--muted); margin: 0 0 24px; line-height: 1.5; }
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    h1 {
+      margin: 0 0 10px;
+      font-family: "Syne", sans-serif;
+      font-weight: 800;
+      font-size: clamp(2rem, 5vw, 2.5rem);
+      letter-spacing: -0.03em;
+      line-height: 1.1;
+    }
+    .sub {
+      color: var(--muted);
+      margin: 0 0 28px;
+      line-height: 1.55;
+      font-size: 0.98rem;
+    }
     .dropzone {
-      border: 2px dashed var(--line);
-      border-radius: 16px;
+      display: block;
+      border: 1.5px dashed var(--line);
+      border-radius: 14px;
       padding: 36px 20px;
       text-align: center;
       cursor: pointer;
-      transition: border-color 0.2s, background 0.2s;
+      transition: border-color 0.2s, background 0.2s, transform 0.2s;
+      background: rgba(15, 23, 42, 0.35);
     }
+    .dropzone:hover { border-color: #475569; }
     .dropzone.dragover {
       border-color: var(--accent);
       background: rgba(56, 189, 248, 0.08);
+      transform: translateY(-1px);
     }
-    .dropzone p { margin: 0; color: var(--muted); }
+    .dropzone.has-file {
+      border-style: solid;
+      border-color: #475569;
+    }
+    .dropzone svg {
+      width: 40px;
+      height: 40px;
+      margin-bottom: 12px;
+      color: var(--accent);
+    }
+    .dropzone .prompt { margin: 0; color: var(--muted); font-size: 0.95rem; }
     .filename {
-      margin-top: 12px;
-      font-size: 14px;
+      margin-top: 14px;
+      font-size: 0.92rem;
       color: var(--ink);
       word-break: break-all;
+      font-weight: 500;
     }
     input[type="file"] { display: none; }
-    button {
+    .actions {
+      display: grid;
+      gap: 10px;
       margin-top: 16px;
+    }
+    button {
       width: 100%;
       border: 0;
-      border-radius: 999px;
+      border-radius: 12px;
       padding: 14px 18px;
       font: inherit;
       font-weight: 600;
       cursor: pointer;
+      transition: background 0.15s, opacity 0.15s;
+    }
+    button.primary {
       background: var(--accent);
       color: #082f49;
     }
-    button:hover:not(:disabled) { background: var(--accent-hover); }
-    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    button.primary:hover:not(:disabled) { background: var(--accent-hover); }
+    button.ghost {
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid var(--line);
+      display: none;
+    }
+    button.ghost.show { display: block; }
+    button.ghost:hover:not(:disabled) {
+      color: var(--ink);
+      border-color: #64748b;
+    }
+    button:disabled { opacity: 0.45; cursor: not-allowed; }
+    .progress-wrap {
+      margin-top: 18px;
+      display: none;
+    }
+    .progress-wrap.show { display: block; }
+    .progress-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 8px;
+      font-size: 0.9rem;
+    }
+    .progress-meta .label { color: var(--muted); }
+    .progress-meta .pct {
+      font-family: "Syne", sans-serif;
+      font-weight: 700;
+      font-size: 1.15rem;
+      color: var(--accent);
+      font-variant-numeric: tabular-nums;
+    }
+    .bar {
+      height: 8px;
+      border-radius: 999px;
+      background: #0f172a;
+      overflow: hidden;
+      border: 1px solid var(--line);
+    }
+    .bar > span {
+      display: block;
+      height: 100%;
+      width: 0%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, #0ea5e9, var(--accent));
+      transition: width 0.25s ease;
+      position: relative;
+    }
+    .bar > span::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.25), transparent);
+      animation: shimmer 1.2s linear infinite;
+    }
+    @keyframes shimmer {
+      from { transform: translateX(-100%); }
+      to { transform: translateX(100%); }
+    }
     .status {
-      margin-top: 16px;
+      margin-top: 14px;
       padding: 12px 14px;
       border-radius: 12px;
-      font-size: 14px;
+      font-size: 0.9rem;
       display: none;
     }
     .status.show { display: block; }
@@ -84,8 +197,8 @@
     .status.error { background: rgba(248, 113, 113, 0.12); color: var(--error); }
     .status.ok { background: rgba(74, 222, 128, 0.12); color: var(--ok); }
     .hint {
-      margin-top: 18px;
-      font-size: 13px;
+      margin-top: 20px;
+      font-size: 0.82rem;
       color: var(--muted);
       line-height: 1.5;
     }
@@ -101,16 +214,32 @@
 
     <label class="dropzone" id="dropzone">
       <input type="file" id="fileInput" accept="video/*,.mp4,.mov,.webm,.mkv,.avi,.m4v" />
-      <p>Перетащите видео сюда или нажмите для выбора</p>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+        <path d="M12 16V4M12 4l-4 4M12 4l4 4" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M4 14v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4" stroke-linecap="round"/>
+      </svg>
+      <p class="prompt" id="dropPrompt">Перетащите видео сюда или нажмите для выбора</p>
       <div class="filename" id="filename"></div>
     </label>
 
-    <button id="submitBtn" disabled>Очистить видео</button>
+    <div class="actions">
+      <button class="primary" id="submitBtn" disabled>Очистить видео</button>
+      <button class="ghost" type="button" id="resetBtn">Загрузить новое видео</button>
+    </div>
+
+    <div class="progress-wrap" id="progressWrap">
+      <div class="progress-meta">
+        <span class="label" id="progressLabel">Обработка…</span>
+        <span class="pct" id="progressPct">0%</span>
+      </div>
+      <div class="bar"><span id="progressBar"></span></div>
+    </div>
+
     <div class="status" id="status"></div>
 
     <p class="hint">
-      Поддерживаются MP4, MOV, WEBM, MKV, AVI. Обработка может занять 1–2 минуты
-      для длинных роликов.
+      Поддерживаются MP4, MOV, WEBM, MKV, AVI. Длинные ролики могут занять
+      несколько минут — прогресс покажет процент обработки.
     </p>
   </main>
 
@@ -118,9 +247,18 @@
     const dropzone = document.getElementById("dropzone");
     const fileInput = document.getElementById("fileInput");
     const filenameEl = document.getElementById("filename");
+    const dropPrompt = document.getElementById("dropPrompt");
     const submitBtn = document.getElementById("submitBtn");
+    const resetBtn = document.getElementById("resetBtn");
     const statusEl = document.getElementById("status");
+    const progressWrap = document.getElementById("progressWrap");
+    const progressBar = document.getElementById("progressBar");
+    const progressPct = document.getElementById("progressPct");
+    const progressLabel = document.getElementById("progressLabel");
+
     let selectedFile = null;
+    let busy = false;
+    let pollTimer = null;
 
     function setStatus(text, kind) {
       statusEl.textContent = text;
@@ -132,17 +270,61 @@
       statusEl.className = "status";
     }
 
+    function setProgress(percent) {
+      const p = Math.max(0, Math.min(100, Math.round(percent)));
+      progressWrap.classList.add("show");
+      progressBar.style.width = p + "%";
+      progressPct.textContent = p + "%";
+    }
+
+    function hideProgress() {
+      progressWrap.classList.remove("show");
+      progressBar.style.width = "0%";
+      progressPct.textContent = "0%";
+    }
+
+    function stopPoll() {
+      if (pollTimer) {
+        clearTimeout(pollTimer);
+        pollTimer = null;
+      }
+    }
+
+    function updateActions() {
+      submitBtn.disabled = busy || !selectedFile;
+      resetBtn.classList.toggle("show", Boolean(selectedFile));
+      resetBtn.disabled = busy;
+      dropzone.style.pointerEvents = busy ? "none" : "";
+      dropzone.style.opacity = busy ? "0.7" : "";
+    }
+
     function pickFile(file) {
-      if (!file) return;
+      if (!file || busy) return;
       selectedFile = file;
+      dropzone.classList.add("has-file");
+      dropPrompt.textContent = "Выбранный файл";
       filenameEl.textContent = file.name + " (" + (file.size / (1024 * 1024)).toFixed(1) + " MB)";
-      submitBtn.disabled = false;
       clearStatus();
+      hideProgress();
+      updateActions();
+    }
+
+    function resetSelection() {
+      stopPoll();
+      busy = false;
+      selectedFile = null;
+      fileInput.value = "";
+      dropzone.classList.remove("has-file");
+      dropPrompt.textContent = "Перетащите видео сюда или нажмите для выбора";
+      filenameEl.textContent = "";
+      clearStatus();
+      hideProgress();
+      updateActions();
     }
 
     dropzone.addEventListener("dragover", (e) => {
       e.preventDefault();
-      dropzone.classList.add("dragover");
+      if (!busy) dropzone.classList.add("dragover");
     });
     dropzone.addEventListener("dragleave", () => dropzone.classList.remove("dragover"));
     dropzone.addEventListener("drop", (e) => {
@@ -151,29 +333,82 @@
       pickFile(e.dataTransfer.files[0]);
     });
     fileInput.addEventListener("change", () => pickFile(fileInput.files[0]));
+    resetBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      resetSelection();
+    });
+
+    async function pollJob(jobId) {
+      const resp = await fetch("/jobs/" + jobId + "/status");
+      if (!resp.ok) {
+        let message = "Не удалось получить статус";
+        try {
+          const data = await resp.json();
+          message = data.detail || message;
+        } catch (_) {}
+        throw new Error(message);
+      }
+      return resp.json();
+    }
+
+    function wait(ms) {
+      return new Promise((resolve) => {
+        pollTimer = setTimeout(resolve, ms);
+      });
+    }
 
     submitBtn.addEventListener("click", async () => {
-      if (!selectedFile) return;
-      submitBtn.disabled = true;
-      setStatus("Обрабатываем видео… Подождите.", "info");
+      if (!selectedFile || busy) return;
+      busy = true;
+      updateActions();
+      clearStatus();
+      setProgress(0);
+      progressLabel.textContent = "Загрузка на сервер…";
 
       const form = new FormData();
       form.append("file", selectedFile);
 
       try {
-        const resp = await fetch("/process", { method: "POST", body: form });
-        if (!resp.ok) {
-          let message = "Ошибка обработки";
+        const startResp = await fetch("/process", { method: "POST", body: form });
+        if (!startResp.ok) {
+          let message = "Ошибка загрузки";
           try {
-            const data = await resp.json();
+            const data = await startResp.json();
             message = data.detail || message;
           } catch (_) {
-            message = await resp.text() || message;
+            message = await startResp.text() || message;
           }
           throw new Error(message);
         }
 
-        const blob = await resp.blob();
+        const { job_id: jobId } = await startResp.json();
+        progressLabel.textContent = "Обработка видео…";
+
+        let status;
+        while (true) {
+          status = await pollJob(jobId);
+          if (typeof status.percent === "number") setProgress(status.percent);
+          if (status.state === "done") break;
+          if (status.state === "error") {
+            throw new Error(status.error || "Ошибка обработки");
+          }
+          await wait(500);
+        }
+
+        setProgress(100);
+        progressLabel.textContent = "Скачивание…";
+        const dl = await fetch("/jobs/" + jobId + "/download");
+        if (!dl.ok) {
+          let message = "Не удалось скачать файл";
+          try {
+            const data = await dl.json();
+            message = data.detail || message;
+          } catch (_) {}
+          throw new Error(message);
+        }
+
+        const blob = await dl.blob();
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         const base = selectedFile.name.replace(/\.[^.]+$/, "");
@@ -184,12 +419,18 @@
         a.remove();
         URL.revokeObjectURL(url);
         setStatus("Готово! Файл скачан.", "ok");
+        progressLabel.textContent = "Готово";
       } catch (err) {
+        hideProgress();
         setStatus(err.message || "Не удалось обработать файл", "error");
       } finally {
-        submitBtn.disabled = !selectedFile;
+        busy = false;
+        stopPoll();
+        updateActions();
       }
     });
+
+    updateActions();
   </script>
 </body>
 </html>

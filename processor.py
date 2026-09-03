@@ -3,9 +3,12 @@ from __future__ import annotations
 import random
 import subprocess
 import sys
+from collections.abc import Callable
 from pathlib import Path
 
 from PIL import Image, ImageEnhance
+
+ProgressCallback = Callable[[int], None]
 
 
 def process_image(input_path: str | Path, output_path: str | Path | None = None) -> Path:
@@ -50,7 +53,31 @@ def process_image(input_path: str | Path, output_path: str | Path | None = None)
     return output_path
 
 
-def process_video(input_path: str | Path, output_path: str | Path | None = None) -> Path:
+def probe_duration_seconds(input_path: Path) -> float:
+    cmd = [
+        "ffprobe",
+        "-v",
+        "error",
+        "-show_entries",
+        "format=duration",
+        "-of",
+        "default=noprint_wrappers=1:nokey=1",
+        str(input_path),
+    ]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        return 0.0
+    try:
+        return max(0.0, float((result.stdout or "").strip()))
+    except ValueError:
+        return 0.0
+
+
+def process_video(
+    input_path: str | Path,
+    output_path: str | Path | None = None,
+    on_progress: ProgressCallback | None = None,
+) -> Path:
     input_path = Path(input_path)
     if not input_path.exists():
         raise FileNotFoundError(f"Файл не найден: {input_path}")
@@ -68,7 +95,11 @@ def process_video(input_path: str | Path, output_path: str | Path | None = None)
     if abs(brightness) > 0.001:
         vf += f",eq=brightness={brightness:.4f}"
 
-    def run_ffmpeg(audio_args: list[str]) -> subprocess.CompletedProcess[str]:
+    duration = probe_duration_seconds(input_path)
+    if on_progress:
+        on_progress(1)
+
+    def run_ffmpeg(audio_args: list[str]) -> tuple[int, str]:
         cmd = [
             "ffmpeg",
             "-y",
@@ -98,21 +129,52 @@ def process_video(input_path: str | Path, output_path: str | Path | None = None)
             *audio_args,
             "-movflags",
             "+faststart",
+            "-progress",
+            "pipe:1",
+            "-nostats",
             str(output_path),
         ]
-        return subprocess.run(cmd, capture_output=True, text=True)
+        proc = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            bufsize=1,
+        )
+        assert proc.stdout is not None
+        last_reported = -1
+        for line in proc.stdout:
+            line = line.strip()
+            if not line.startswith("out_time_ms=") or not on_progress or duration <= 0:
+                continue
+            raw = line.split("=", 1)[1]
+            if not raw.isdigit():
+                continue
+            out_ms = int(raw)
+            percent = int(min(99, max(1, (out_ms / 1_000_000) / duration * 100)))
+            if percent != last_reported:
+                last_reported = percent
+                on_progress(percent)
+
+        stderr = ""
+        if proc.stderr is not None:
+            stderr = proc.stderr.read()
+        code = proc.wait()
+        return code, stderr
 
     # Prefer copying audio (much faster); fall back to AAC if remux fails.
-    result = run_ffmpeg(["-c:a", "copy"])
-    if result.returncode != 0:
-        result = run_ffmpeg(["-c:a", "aac", "-b:a", "128k"])
+    code, stderr = run_ffmpeg(["-c:a", "copy"])
+    if code != 0:
+        code, stderr = run_ffmpeg(["-c:a", "aac", "-b:a", "128k"])
 
-    if result.returncode != 0:
-        stderr = (result.stderr or "").strip()
-        raise RuntimeError(stderr or "ffmpeg завершился с ошибкой")
+    if code != 0:
+        raise RuntimeError((stderr or "").strip() or "ffmpeg завершился с ошибкой")
 
     if not output_path.exists():
         raise RuntimeError("Выходной файл не был создан")
+
+    if on_progress:
+        on_progress(100)
 
     return output_path
 
