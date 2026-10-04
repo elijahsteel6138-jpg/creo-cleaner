@@ -25,19 +25,22 @@ docker build -t creo-cleaner .
 docker run --rm -p 8000:8000 creo-cleaner
 ```
 
-## Деплой на Railway
+## Деплой на Render
 
-1. Создайте репозиторий на GitHub и запушьте этот проект.
-2. Зайдите на [railway.app](https://railway.app) → New Project → Deploy from GitHub.
-3. Выберите репозиторий `creo-cleaner`.
-4. Railway соберёт Dockerfile и выдаст публичный URL.
-5. (Опционально) В Variables задайте `MAX_UPLOAD_MB=200`.
+1. Запушьте этот репозиторий на GitHub.
+2. Зайдите на [render.com](https://render.com) → **New** → **Blueprint**.
+3. Выберите репозиторий `creo-cleaner` (подхватит `render.yaml`).
+4. Дождитесь сборки Docker-образа — URL будет вида `https://creo-cleaner.onrender.com`.
+
+На free-плане сервис может «засыпать» после простоя (~15 мин): первый запрос после сна занимает 30–60 сек.
 
 ## API
 
 - `GET /` — веб-форма
 - `GET /health` — проверка живости
-- `POST /process` — загрузка видео (multipart `file`), ответ — очищенный MP4
+- `POST /process` — загрузка видео (multipart `file`), ответ — `{ "job_id": "..." }`
+- `GET /jobs/{id}/status` — прогресс `{ "state", "percent", "error" }`
+- `GET /jobs/{id}/download` — готовый MP4
 
 ## CLI (processor.py)
 

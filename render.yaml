@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: creo-cleaner
+    runtime: docker
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: MAX_UPLOAD_MB
+        value: "200"
+      - key: UPLOAD_DIR
+        value: /tmp/creo-cleaner/uploads
