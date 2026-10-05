@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import random
 import subprocess
 import sys
@@ -89,17 +90,25 @@ def process_video(
 
     crop_pixels = random.randint(1, 3)
     brightness = random.uniform(-0.02, 0.02)
-    crf = random.randint(22, 24)
+    crf = random.randint(23, 26)
+    # Cap height to limit RAM on free hosts (Render ~512MB).
+    max_height = int(os.environ.get("MAX_VIDEO_HEIGHT", "720"))
 
-    vf = f"crop=iw-{crop_pixels * 2}:ih-{crop_pixels * 2}:{crop_pixels}:{crop_pixels}"
+    vf_parts = [
+        f"scale=-2:'min({max_height},ih)'",
+        f"crop=iw-{crop_pixels * 2}:ih-{crop_pixels * 2}:{crop_pixels}:{crop_pixels}",
+    ]
     if abs(brightness) > 0.001:
-        vf += f",eq=brightness={brightness:.4f}"
+        vf_parts.append(f"eq=brightness={brightness:.4f}")
+    vf = ",".join(vf_parts)
 
     duration = probe_duration_seconds(input_path)
     if on_progress:
         on_progress(1)
 
     def run_ffmpeg(audio_args: list[str]) -> tuple[int, str]:
+        if output_path.exists():
+            output_path.unlink(missing_ok=True)
         cmd = [
             "ffmpeg",
             "-y",
@@ -125,7 +134,9 @@ def process_video(
             "-preset",
             "ultrafast",
             "-threads",
-            "0",
+            "2",
+            "-pix_fmt",
+            "yuv420p",
             *audio_args,
             "-movflags",
             "+faststart",

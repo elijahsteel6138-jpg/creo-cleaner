@@ -242,6 +242,7 @@
       Поддерживаются MP4, MOV, WEBM, MKV, AVI. Длинные ролики могут занять
       несколько минут — прогресс покажет процент обработки.
       Чем меньше весит видео, тем быстрее оно загрузится и обработается.
+      На бесплатном сервере лучше файлы до ~50&nbsp;MB и до 720p — иначе обработка может оборваться.
     </p>
   </main>
 
@@ -342,16 +343,28 @@
     });
 
     async function pollJob(jobId) {
-      const resp = await fetch("/jobs/" + jobId + "/status");
-      if (!resp.ok) {
-        let message = "Не удалось получить статус";
+      let lastError = "Не удалось получить статус";
+      for (let attempt = 0; attempt < 12; attempt++) {
         try {
-          const data = await resp.json();
-          message = data.detail || message;
-        } catch (_) {}
-        throw new Error(message);
+          const resp = await fetch("/jobs/" + jobId + "/status");
+          if (resp.ok) return resp.json();
+          let message = "Не удалось получить статус";
+          try {
+            const data = await resp.json();
+            message = data.detail || message;
+          } catch (_) {}
+          lastError = message;
+          // 404/502/503 often mean cold start or OOM restart — wait and retry.
+          if (![404, 502, 503, 520, 524].includes(resp.status) || attempt >= 11) {
+            throw new Error(message);
+          }
+        } catch (err) {
+          if (attempt >= 11) throw err;
+          lastError = err.message || lastError;
+        }
+        await wait(2000 + attempt * 500);
       }
-      return resp.json();
+      throw new Error(lastError);
     }
 
     function wait(ms) {

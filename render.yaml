@@ -6,6 +6,8 @@ services:
     healthCheckPath: /health
     envVars:
       - key: MAX_UPLOAD_MB
-        value: "200"
+        value: "100"
+      - key: MAX_VIDEO_HEIGHT
+        value: "720"
       - key: UPLOAD_DIR
         value: /tmp/creo-cleaner/uploads
